@@ -5,3 +5,5 @@
 # Generate seed template
 
 `sequelize seed:generate --name fake-posts --seeders-path src/server/seeders`
+
+test merge toool
