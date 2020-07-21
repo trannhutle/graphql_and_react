@@ -1,5 +1,3 @@
-const { defaultFieldResolver } = require("graphql");
-
 const typeDefinitions = `
     type User{
         avatar: String
