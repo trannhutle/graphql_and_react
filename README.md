@@ -13,3 +13,7 @@
 # Generate a boilerplate migration fire
 
 `sequelize migration:create --migrations-path src/server/migrations --name add-userId-to-post`
+
+# Migrate data
+
+`sequelize db:migrate --migrations-path src/server/migrations --config src/server/config/index.js`

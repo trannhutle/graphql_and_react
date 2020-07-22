@@ -1,5 +1,4 @@
 import logger from "../../helpers/logger";
-import chat from "../../models/chat";
 
 export default function resolver() {
   const { db } = this;
@@ -25,6 +24,15 @@ export default function resolver() {
       },
       users(chat, args, context) {
         return chat.getUsers();
+      },
+      lastMessage(chat, args, context) {
+        return chat
+          .getMessages({ limit: 1, order: [["id", "DESC"]] })
+          .then((message) => {
+            // logger({ level: "info", message: message });
+            console.log(message);
+            return message[0];
+          });
       },
     },
     RootQuery: {
@@ -57,7 +65,7 @@ export default function resolver() {
         });
       },
       chat(root, { chatId }, context) {
-        return Chat.findById(chatId, {
+        return Chat.findByPk(chatId, {
           include: [
             {
               model: User,
