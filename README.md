@@ -6,4 +6,10 @@
 
 `sequelize seed:generate --name fake-posts --seeders-path src/server/seeders`
 
-Test conflict solving
+# Generate a entity
+
+`sequelize model:generate --models-path src/server/models --migrations-path src/server/migrations --name User --attributes avatar:string,username:string`
+
+# Generate a boilerplate migration fire
+
+`sequelize migration:create --migrations-path src/server/migrations --name add-userId-to-post`

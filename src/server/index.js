@@ -1,9 +1,11 @@
+require("dotenv").config();
 import express from "express";
 import path from "path";
 
 import helmet from "helmet";
 import cors from "cors";
 import compress from "compression";
+
 import servicesLoader from "./services";
 import db from "./database";
 
