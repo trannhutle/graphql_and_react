@@ -77,6 +77,31 @@ export default function resolver() {
           ],
         });
       },
+      postsFeed(root, { page, limit }, context) {
+        var skip = 0;
+
+        /* The page number is multiplied by the limit,
+        in order to skip the calculated number of rows*/
+        if (page && limit) {
+          skip = page * limit;
+        }
+
+        /* The offset parameter skips the number of rows,
+         and the parameter limit stops selecting rows after a specified number 
+         (which, in our case, is 10). */
+        const query = {
+          order: [["createdAt", "DESC"]],
+          offset: skip,
+        };
+
+        if (limit) {
+          query.limit = limit;
+        }
+
+        return {
+          posts: Post.findAll(query),
+        };
+      },
     },
     RootMutation: {
       addPost(root, { post, user }, context) {

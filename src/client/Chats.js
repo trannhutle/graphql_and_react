@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { Query } from "react-apollo";
+import { Query, Mutation } from "react-apollo";
 import gql from "graphql-tag";
 const chats = [
   {
@@ -52,9 +52,19 @@ const GET_CHAT = gql`
     }
   }
 `;
-
+const ADD_MESSAGE = gql`
+  mutation addMessage($message: MessageInput!) {
+    addMessage(message: $message) {
+      id
+      text
+      user {
+        id
+      }
+    }
+  }
+`;
 export default class Chats extends Component {
-  state = { openChats: [] };
+  state = { openChats: [], textInputs: {} };
 
   usernamesToString = (users) => {
     const userList = users.slice(1);
@@ -74,16 +84,49 @@ export default class Chats extends Component {
     return text;
   };
 
+  onChangeChatInput = (event, id) => {
+    event.preventDefault();
+    var textInputs = Object.assign({}, this.state.textInputs);
+    textInputs[id] = event.target.value;
+    this.setState({ textInputs });
+  };
+
+  handleKeyPress = (event, id, addMessage) => {
+    const self = this;
+    var textInputs = Object.assign({}, this.state.textInputs);
+    if (event.key === "Enter" && textInputs[id].length) {
+      addMessage({
+        variables: { message: { text: textInputs[id], chatId: id } },
+      }).then(() => {
+        textInputs[id] = "";
+        self.setState({ textInputs });
+      });
+    }
+  };
+
   openChat = (id) => {
-    var openChats = this.state.openChats.slice();
+    const openChats = this.state.openChats.slice();
+    const textInputs = Object.assign({}, this.state.textInputs);
+
     if (openChats.indexOf(id) === -1) {
       if (openChats.length > 2) {
         openChats = openChats.slice(1);
       }
       openChats.push(id);
+      textInputs[id] = "";
     }
 
-    this.setState({ openChats });
+    this.setState({ openChats, textInputs });
+  };
+
+  closeChat = (id) => {
+    const openChats = this.state.openChats.slice();
+    const textInputs = Object.assign({}, this.state.textInputs);
+
+    const index = openChats.indexOf(id);
+    openChats.splice(index, 1);
+    delete textInputs[id];
+    this.setState({ openChats, textInputs });
   };
 
   render() {
@@ -147,7 +190,14 @@ export default class Chats extends Component {
                   <div className="chatWindow">
                     <div className="header">
                       <span> {chat.users[1].username}</span>
-                      <button className="close"> X</button>
+                      <button
+                        className="close"
+                        onClick={() => {
+                          this.closeChat(chatId);
+                        }}
+                      >
+                        X
+                      </button>
                     </div>
                     <div className="messages">
                       {chat.messages.map((messagge, j) => (
@@ -162,6 +212,36 @@ export default class Chats extends Component {
                         </div>
                       ))}
                     </div>
+                    <Mutation
+                      update={(store, { data: { addMessage } }) => {
+                        const data = store.readQuery({
+                          query: GET_CHAT,
+                          variables: { chatId: chat.id },
+                        });
+                        data.chat.messages.push(addMessage);
+                        store.writeQuery({
+                          query: GET_CHAT,
+                          variables: { chatId: chat.id },
+                          data,
+                        });
+                      }}
+                      mutation={ADD_MESSAGE}
+                    >
+                      {(addMessage) => (
+                        <div className="input">
+                          <input
+                            type="text"
+                            value={textInputs[chat.id]}
+                            onChange={(event) =>
+                              this.onChangeChatInput(event, chat.id)
+                            }
+                            onKeyPress={(event) => {
+                              this.handleKeyPress(event, chat.id, addMessage);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </Mutation>
                   </div>
                 );
               }}

@@ -166,3 +166,39 @@ form [type="submit"] {
   right: 0;
   top: 0;
 }
+.chatWindow .input input {
+  width: calc(100% - 4px);
+  border: none;
+  padding: 2px;
+}
+.chatWindow .input input:focus {
+  outline: none;
+}
+.bouncer {
+  margin: 20px auto;
+  border-radius: 100%;
+  -webkit-animation: bounce 1s infinite ease-in-out;
+  animation: bounce 1s infinite ease-in-out;
+}
+
+@-webkit-keyframes bounce {
+  0% {
+    -webkit-transform: scale(0);
+  }
+  100% {
+    -webkit-transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes bounce {
+  0% {
+    -webkit-transform: scale(0);
+    transform: scale(0);
+  }
+  100% {
+    -webkit-transform: scale(1);
+    transform: scale(1);
+    opacity: 0;
+  }
+}

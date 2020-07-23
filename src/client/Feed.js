@@ -2,23 +2,13 @@ import React, { Component } from "react";
 import { Helmet } from "react-helmet";
 import gql from "graphql-tag";
 import { compose, graphql, Query, Mutation } from "react-apollo";
-
-const GET_POSTS = gql`
-  {
-    posts {
-      id
-      text
-      user {
-        avatar
-        username
-      }
-    }
-  }
-`;
+import InfiniteScroll from "react-infinite-scroller";
+import FeedList from "./components/post/feedList";
+import PostsFeedQuery from "./components/queries/postsFeed";
 
 const ADD_POST = gql`
   mutation addPost($post: PostInput!) {
-    addPost(post: $Post) {
+    addPost(post: $post) {
       id
       text
       user {
@@ -29,143 +19,105 @@ const ADD_POST = gql`
   }
 `;
 
-const ADD_POST_MUTATION = graphql(ADD_POST, {
-  name: "addPost",
-});
-const GET_POSTS_QUERY = graphql(GET_POSTS, {
-  props: ({ data: { loading, error, posts } }) => ({
-    loading,
-    posts,
-    error,
-  }),
-});
 export default class Feed extends Component {
-  state = {
-    postContent: "",
-    hasMore: true,
-    page: 0,
-  };
-  handleSubmit = (event) => {
-    event.preventDefault();
-    const newPost = {
-      id: this.state.posts.length + 1,
-      text: this.state.postContent,
-      user: {
-        avatar: "/uploads/avatar1.png",
-        username: "Fake User",
+  constructor(props) {
+    super(props);
+    this.textarea = React.createRef();
+  }
+
+  loadMore = (fetchMore) => {
+    const self = this;
+    const { page } = this.state;
+    /* specify the variables field, which is sent with our request,
+     in order to query the correct page index of our paginated posts. */
+    fetchMore({
+      variables: {
+        page: page + 1,
       },
-    };
-    this.props.addPost({ variables: { post: newPost } }).then(() => {
-      self.setState((prevState) => ({
-        postContent: "",
-      }));
+      updateQuery(previousResult, { fetchMoreResult }) {
+        /* 
+        check whether any new data is included in the response by looking at the returned array length.
+        
+        if there are not any posts,
+        we can set the hasMore state variable to false, which unbinds all scrolling events. 
+         */
+        if (!fetchMoreResult.postsFeed.posts.length) {
+          self.setState({ hasMore: false });
+          return previousResult;
+        }
+        self.setState({ page: page + 1 });
+
+        /* 
+        continue and build a new postsFeed object inside of the newData variable.
+        The posts array is filled by the previous posts query result and the newly fetched posts. 
+        At the end, the newData variable is returned and saved in the client's cache. */
+        const newData = {
+          postFeed: {
+            __typename: "PostFeed",
+            posts: [
+              ...previousResult.postsFeed.posts,
+              ...fetchMoreResult.postsFeed.posts,
+            ],
+          },
+        };
+        return newData;
+      },
     });
   };
-  handlePostContentChange = (event) => {
-    this.setState({ postContent: event.target.value });
-  };
-  if(loading) {
-    return "Loading...";
-  }
-  if(error) {
-    return error.message;
-  }
+
   render() {
     const self = this;
-    const { postContent } = this.state;
-
     return (
-      <Query query={GET_POSTS}>
-        {({ loading, error, data }) => {
-          if (loading) return <p>Loading...</p>;
-          if (error) return error.message;
+      <div className="container">
+        <div className="postForm">
+          <Mutation
+            mutation={ADD_POST}
+            update={(store, { data: { addPost } }) => {
+              const variables = { page: 0, limit: 10 };
 
-          const { posts } = data;
-
-          return (
-            <div className="container">
-              <div className="postForm">
-                <Mutation
-                  mutation={ADD_POST}
-                  update={(store, { data: { addPost } }) => {
-                    /* It reads the data, which has been saved for this specific query inside of the cache.
+              /* It reads the data, which has been saved for this specific query inside of the cache.
                     The data variable holds all of the posts that we have in our feed. */
-                    const data = store.readQuery({ query: GET_POSTS });
+              const data = store.readQuery({
+                query: GET_POSTS,
+                variables,
+              });
 
-                    /* Now that we have all of the posts in an array, we can add the missing post. 
+              /* Now that we have all of the posts in an array, we can add the missing post. 
                     Make sure that you know whether you need to prepend or append an item. 
                     In our example, we want to insert a post at the top of our list, so we need to prepend it.
                     You can use the unshift JavaScript function to do this. 
                     We just set our addPost as the first item of the data.posts array. */
-                    data.posts.unshift(addPost);
+              data.posts.unshift(addPost);
 
-                    /* . The store.writeQuery.The function accepts the query which we used to send the request.
+              /* . The store.writeQuery.The function accepts the query which we used to send the request.
                     This query is used to update the saved data in our cache. .second parameter is the data that should be saved. */
-                    store.writeQuery({ query: GET_POSTS, data });
-                  }}
-                  /* 
-                  The optimisticResponse can be anything from a function to a simple object.however, needs to be a GraphQL response object.
-                  
-
-                  */
-                  optimisticResponse={{
-                    __typename: "mutation",
-                    addPost: {
-                      __typename: "Post",
-                      text: postContent,
-                      /* React expects that every component in a loop gets a unique key.
-                      Minus one is never used by any other post, because MySQL starts counting at one.   */
-                      id: -1,
-                      user: {
-                        __typename: "User",
-                        userName: "Loading ...",
-                        avatar: "/public/loading.gif",
-                      },
-                    },
-                  }}
-                >
-                  {(addPost) => (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        addPost({
-                          variables: { post: { text: postContent } },
-                        }).then(() => {
-                          self.setState((prevState) => ({
-                            postContent: "",
-                          }));
-                        });
-                      }}
-                    >
-                      <textarea
-                        value={postContent}
-                        onChange={self.handlePostContentChange}
-                        placeholder="Write 
-                    your custom post!"
-                      />
-                      <input type="submit" value="Submit" />
-                    </form>
-                  )}
-                </Mutation>
-              </div>
-              <div className="feed">
-                {posts.map((post, i) => (
-                  <div
-                    key={post.id}
-                    className={`post ${post.id < 0 ? "optimistic" : ""}`}
-                  >
-                    <div className="header">
-                      <img src={post.user.avatar} />
-                      <h2>{post.user.username}</h2>
-                    </div>
-                    <p className="content">{post.text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        }}
-      </Query>
+              store.writeQuery({ query: GET_POSTS, variables, data });
+            }}
+          >
+            {(addPost) => (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  addPost({
+                    variables: { post: { text: self.textarea.current.value } },
+                  }).then(() => {
+                    self.textarea.current.value = "";
+                  });
+                }}
+              >
+                <textarea
+                  ref={this.textarea}
+                  placeholder="Write your custom post!"
+                />
+                <input type="submit" value="Submit" />
+              </form>
+            )}
+          </Mutation>
+        </div>
+        <PostsFeedQuery>
+          <FeedList />
+        </PostsFeedQuery>
+      </div>
     );
   }
 }
